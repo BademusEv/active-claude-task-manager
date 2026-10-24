@@ -6,7 +6,7 @@ you (with the app's own one-line report), and which are stopped by the usage lim
 session to switch the Claude app to it. It lives in the menu bar: no Dock icon, no ⌘Tab
 entry.
 
-<p align="center"><img src="docs/screenshot.png" alt="The Claude Sessions panel" width="380"></p>
+<p align="center"><img src="docs/screenshot.png" alt="The Claude Sessions panel" width="440"></p>
 
 Only local sessions are shown: the Claude app keeps cloud sessions on its server and writes
 no list of them to disk. The widget only reads the app's files on your Mac and sends nothing
