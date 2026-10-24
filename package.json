@@ -8,7 +8,7 @@
     "start": "electron .",
     "dev": "electron .",
     "build:helper": "sh scripts/build-helper.sh",
-    "postinstall": "sh scripts/build-helper.sh",
+    "postinstall": "sh scripts/build-helper.sh --optional",
     "autostart": "sh scripts/install-launch-agent.sh",
     "autostart:remove": "sh scripts/install-launch-agent.sh remove",
     "package": "sh scripts/package.sh"
@@ -17,5 +17,11 @@
     "@electron/packager": "^20.3.0",
     "electron": "^32.2.0"
   },
-  "productName": "Claude Sessions"
+  "productName": "Claude Sessions",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "os": [
+    "darwin"
+  ]
 }

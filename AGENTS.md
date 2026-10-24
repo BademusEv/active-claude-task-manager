@@ -19,6 +19,7 @@ what it shows are in [README.md](README.md); do not duplicate them here.
 | Bridge between page and main process (`window.sessionsWidget`) | `src/preload.js` |
 | Page: list, groups, tree, filters, keyboard, collapse/peek animation | `src/renderer/renderer.js` |
 | Page markup and styles | `src/renderer/index.html`, `src/renderer/styles.css` |
+| Every user-facing string, English and Russian | `src/i18n.js` |
 | Frontmost-app helper (Swift, built to `build/front`) | `helper/front.swift` |
 | App icon, drawn at build time | `scripts/make-icon.swift` |
 | Build `Claude Sessions.app` and install it | `scripts/package.sh` |
@@ -29,12 +30,13 @@ what it shows are in [README.md](README.md); do not duplicate them here.
 - Electron 32, plain CommonJS JavaScript, no bundler, no framework; the page is vanilla DOM.
 - A Swift command-line helper (`build/front`) for the frontmost app and Claude's windows.
 - Packaged with `@electron/packager`; started at login by a per-user LaunchAgent.
-- macOS only.
+- macOS only, Apple silicon and Intel. Node 22.12+ (`@electron/packager` requires it;
+  `scripts/package.sh` checks it, the CPU and `swift` before building).
 
 ## Commands
 
 ```sh
-npm install                # also compiles build/front (postinstall, needs swiftc)
+npm install                # also compiles build/front (postinstall; only a warning without swiftc)
 npm start                  # development build; a second copy only focuses the running one
 npm run build:helper       # recompile build/front after editing helper/front.swift
 npm run package            # build, ad-hoc sign, install ~/Applications/Claude Sessions.app, restart the LaunchAgent
@@ -72,7 +74,7 @@ No test suite. Before declaring a change done:
 |---|---|---|
 | One JSON file per Code-tab session | `~/Library/Application Support/Claude/claude-code-sessions/<ws>/<folder>/local_<id>.json` | title, cwd, branch, timestamps, parent (`spawnedFrom.sessionId`), archived, starred, the app's last-turn report |
 | Session transcript | `~/.claude/projects/<slug>/<cliSessionId>.jsonl` | whether a turn is running, waiting on a question, or stopped by the API |
-| Widget state | `~/Library/Application Support/claude-sessions-widget/state.json` | detached ids, pin, notifications, collapsed, bounds, `linkPrefix`, `hotkey` |
+| Widget state | `~/Library/Application Support/claude-sessions-widget/state.json` | language, detached ids, pin, notifications, collapsed, bounds, `linkPrefix`, `hotkey` |
 
 - Find a transcript by `cliSessionId` across all project folders: the slug changes when a
   session moves folders.
@@ -109,7 +111,14 @@ tray number, notifications); `limited` does not.
 - Collapse and expand must not resize the window (see Gotchas); keep them to `clip-path`
   and `opacity` on `.shell`.
 - A new field in `state.json` gets a default in `DEFAULT_STATE`; a renamed or removed one
-  gets a migration in `loadState` (see the `follow` → `pinned` one).
+  gets a migration in `loadState` (see `follow` → `pinned`, and `language`, which is `ru`
+  for settings saved before it existed).
+- Every user-facing string lives in `src/i18n.js`, in both `en` (the default) and `ru`,
+  with the same keys; the main process `require`s it and the page loads it as a script
+  (`window.I18N`). No literal UI text in `main.js`, `renderer.js` or `index.html` beyond
+  the English placeholders the page overwrites. Text cached with a file (titles, API error
+  text) is translated when the row is built, not when the file is read, so a language
+  switch applies at once.
 - Smallest correct diff. Do not commit unless the person asks.
 
 ## Gotchas

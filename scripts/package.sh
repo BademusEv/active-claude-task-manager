@@ -10,7 +10,19 @@ NAME="Claude Sessions"
 BUNDLE_ID="com.vadimevteev.claude-sessions-widget"
 LABEL="com.vadimevteev.claude-sessions-widget"
 DEST="$HOME/Applications"
-ARCH="$(uname -m)"
+# Electron's names for the CPU: arm64 on Apple silicon, x64 on Intel.
+case "$(uname -m)" in
+  arm64) ARCH=arm64 ;;
+  x86_64) ARCH=x64 ;;
+  *) echo "unsupported CPU: $(uname -m)" >&2; exit 1 ;;
+esac
+
+NODE_MAJOR_MINOR="$(node -p 'process.versions.node.split(".").slice(0, 2).join(".")')"
+if ! node -e 'const [a, b] = process.versions.node.split(".").map(Number); process.exit(a > 22 || (a === 22 && b >= 12) ? 0 : 1)'; then
+  echo "Node $NODE_MAJOR_MINOR is too old for @electron/packager: install Node 22.12 or newer" >&2
+  exit 1
+fi
+command -v swift >/dev/null 2>&1 || { echo "swift not found: install the Xcode Command Line Tools with  xcode-select --install" >&2; exit 1; }
 
 [ -x build/front ] || sh scripts/build-helper.sh
 
@@ -48,13 +60,17 @@ APP="dist/$NAME-darwin-$ARCH/$NAME.app"
 # Ad-hoc signature: the bundle was changed after Electron's own signing.
 codesign --force --deep --sign - "$APP"
 
-launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
+AGENT="$HOME/Library/LaunchAgents/$LABEL.plist"
+# Stop the copy being replaced: through its LaunchAgent when autostart is on.
+[ -f "$AGENT" ] && launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
 pkill -f "$DEST/$NAME.app/Contents/MacOS/" 2>/dev/null || true
 mkdir -p "$DEST"
 rm -rf "$DEST/$NAME.app"
 ditto "$APP" "$DEST/$NAME.app"
 echo "installed $DEST/$NAME.app"
 
-if [ -f "$HOME/Library/LaunchAgents/$LABEL.plist" ]; then
+if [ -f "$AGENT" ]; then
   sh scripts/install-launch-agent.sh
+else
+  echo "start it with:  open \"$DEST/$NAME.app\"   (or  npm run autostart  to start it at login)"
 fi

@@ -11,6 +11,8 @@
   --attention-dim: #2c4469;
   --limit: #e0b050;
   --limit-dim: #4f4024;
+  /* Claude's terracotta, for project names. */
+  --project: #d97757;
   --danger: #d97b7b;
   --border: #272b32;
   --radius: 8px;
@@ -279,6 +281,7 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: var(--project);
 }
 
 .group-count {

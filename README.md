@@ -6,27 +6,40 @@ you (with the app's own one-line report), and which are stopped by the usage lim
 session to switch the Claude app to it. It lives in the menu bar: no Dock icon, no ⌘Tab
 entry.
 
+<p align="center"><img src="docs/screenshot.png" alt="The Claude Sessions panel" width="380"></p>
+
 Only local sessions are shown: the Claude app keeps cloud sessions on its server and writes
 no list of them to disk. The widget only reads the app's files on your Mac and sends nothing
 anywhere.
 
 ## Requirements
 
-- macOS with the Claude desktop app (Code tab).
-- Node.js and npm.
-- Xcode Command Line Tools (`swiftc`) for the small Swift helper.
+- macOS on Apple silicon or Intel, with the Claude desktop app and its Code tab in use.
+- Node.js 22.12 or newer (the app packager needs it) and npm.
+- Xcode Command Line Tools for the Swift helper and the icon: `xcode-select --install`.
+  Without them `npm install` still works and `npm start` runs, but the widget cannot
+  hide together with Claude, and `npm run package` stops with the same hint.
 
 ## Install
 
 ```bash
-npm install          # also compiles the Swift helper
-npm run package      # builds ~/Applications/Claude Sessions.app
-npm run autostart    # start at login; restarts after a crash
+git clone https://github.com/BademusEv/active-claude-task-manager.git
+cd active-claude-task-manager
+npm install          # downloads Electron, compiles the Swift helper
+npm run package      # builds and installs ~/Applications/Claude Sessions.app
+open ~/Applications/"Claude Sessions.app"
+npm run autostart    # optional: start at login, restart after a crash
 ```
 
-`npm run autostart:remove` turns autostart off. `npm start` runs the development build
-without packaging. Both keep their settings in
-`~/Library/Application Support/claude-sessions-widget/state.json`.
+The widget appears in the menu bar (no Dock icon) and as a panel at the top right of the
+screen. macOS asks once whether «Claude Sessions» may send notifications.
+
+- Update: `git pull`, then `npm run package` again; with autostart on, the new build
+  starts by itself.
+- `npm run autostart:remove` turns autostart off; delete
+  `~/Applications/Claude Sessions.app` to remove the app.
+- `npm start` runs the development build without packaging. Both builds keep their
+  settings in `~/Library/Application Support/claude-sessions-widget/state.json`.
 
 ## What it shows
 
@@ -36,14 +49,14 @@ without packaging. Both keep their settings in
   - green, pulsing — Claude is working;
   - blue, bold title — waits for you: a question, a decision, or a finished turn you have
     not opened yet;
-  - yellow — stopped by the usage limit, with the time it resets; it turns blue («Лимит
-    сброшен — можно продолжить») once it has;
+  - yellow — stopped by the usage limit, with the time it resets; it turns blue («Limit
+    reset; you can continue») once it has;
   - red — stopped by an API error, with its text;
   - grey — nothing new.
 - **Under a session that waits for you**, the Claude app's own report on the last turn:
   what it needs from you, or what it did.
 - **Title bar counters** (blue: wait for you, green: working) filter the list by that
-  status. `7 д` hides sessions idle for over a week; the search box matches title, project
+  status. `7d` hides sessions idle for over a week; the search box matches title, project
   and branch. ⌥-click on a group header folds or unfolds every group.
 - **Right-click on a session**: open it, copy its link, show its folder in Finder or a
   Terminal, open its branch's pull request on GitHub, detach it from the list.
@@ -62,9 +75,11 @@ without packaging. Both keep their settings in
 - **Notifications** come when a session starts to wait for you or fails, unless Claude is
   in front; one notification covers every session a usage limit stops. Click one to open
   the session. Switch them off in the menu bar menu.
-- **Menu bar icon**: the number of sessions waiting for you; its menu has Показать окно,
-  the pin and notification switches, Вернуть открепленные and Выход. The window's close
+- **Menu bar icon**: the number of sessions waiting for you; its menu has Show window, the
+  pin and notification switches, Language, Restore detached and Quit. The window's close
   button only hides it.
+- **Language**: English by default, Russian in the menu bar menu (Language). Settings from
+  versions before the switch keep Russian.
 
 ## Project layout
 
@@ -72,6 +87,7 @@ without packaging. Both keep their settings in
 src/main.js            main process: sessions, statuses, tray, window, notifications
 src/preload.js         bridge between the page and the main process
 src/renderer/          the panel (HTML, CSS, JS)
+src/i18n.js            every user-facing string, in English and Russian
 helper/front.swift     reports the frontmost app (built to build/front)
 scripts/               build, packaging, icon, LaunchAgent
 ```

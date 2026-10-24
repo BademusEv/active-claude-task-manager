@@ -1,7 +1,9 @@
 'use strict';
 
 const api = window.sessionsWidget;
-const NO_FOLDER = 'Без папки';
+const I18N = window.I18N;
+// Groups key on this; the label comes from the language.
+const NO_FOLDER = '\u0000no-folder';
 const COLLAPSED_KEY = 'collapsedGroups';
 const RECENT_KEY = 'recentOnly';
 const RECENT_MS = 7 * 24 * 60 * 60 * 1000;
@@ -12,13 +14,12 @@ const COLLAPSE_TIMEOUT_MS = 600;
 const PEEK_OPEN_MS = 450;
 const PEEK_CLOSE_MS = 350;
 
-const STATUS_TITLES = {
-  working: 'Claude работает',
-  waiting: 'Claude ждёт тебя',
-  unread: 'Claude закончил — ты ещё не смотрел',
-  limited: 'Остановлено лимитом использования',
-  error: 'Остановлено ошибкой API',
-  idle: '',
+const STATUS_KEYS = {
+  working: 'statusWorking',
+  waiting: 'statusWaiting',
+  unread: 'statusUnread',
+  limited: 'statusLimited',
+  error: 'statusError',
 };
 
 const listEl = document.getElementById('list');
@@ -37,7 +38,7 @@ const shellEl = document.getElementById('shell');
 const miniEl = document.querySelector('.mini');
 
 let snap = { sessions: [], hidden: [] };
-let flags = { pinned: false, collapsed: false };
+let flags = { language: I18N.fallback, pinned: false, collapsed: false };
 let collapsed = loadCollapsed();
 let query = '';
 let recentOnly = loadRecentOnly();
@@ -84,6 +85,15 @@ function saveCollapsed() {
   }
 }
 
+// The strings of the chosen language.
+function t() {
+  return I18N[flags.language] || I18N[I18N.fallback];
+}
+
+function groupLabel(name) {
+  return name === NO_FOLDER ? t().noFolder : name;
+}
+
 function projectOf(cwd) {
   if (!cwd || cwd.includes('/scratch-workspaces/')) return NO_FOLDER;
   const parts = cwd.split('/').filter(Boolean);
@@ -98,7 +108,7 @@ function matches(s, q) {
   if (!q) return true;
   return (
     s.title.toLowerCase().includes(q) ||
-    projectOf(s.projectCwd).toLowerCase().includes(q) ||
+    groupLabel(projectOf(s.projectCwd)).toLowerCase().includes(q) ||
     (s.branch && s.branch.toLowerCase().includes(q))
   );
 }
@@ -113,11 +123,11 @@ function ageOf(ms, nowMs) {
   const diff = nowMs - ms;
   if (!Number.isFinite(diff) || diff < 0) return '';
   const m = Math.floor(diff / 60000);
-  if (m < 1) return 'сейчас';
-  if (m < 60) return `${m} мин`;
+  if (m < 1) return t().now;
+  if (m < 60) return t().minutes(m);
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h} ч`;
-  return `${Math.floor(h / 24)} д`;
+  if (h < 24) return t().hours(h);
+  return t().days(Math.floor(h / 24));
 }
 
 function el(tag, className, text) {
@@ -197,9 +207,9 @@ function shortBranch(branch) {
 }
 
 function ageLabel(s, nowMs) {
-  if (s.status === 'working') return 'работает';
-  if (s.status === 'limited') return 'лимит';
-  if (s.status === 'error') return 'ошибка';
+  if (s.status === 'working') return t().ageWorking;
+  if (s.status === 'limited') return t().ageLimited;
+  if (s.status === 'error') return t().ageError;
   return ageOf(s.lastActivityAt, nowMs);
 }
 
@@ -214,8 +224,8 @@ function renderRow(s, depth, nowMs) {
   const main = el('button', 'row-main');
   main.type = 'button';
   const summary = summaryLine(s, nowMs);
-  const status = STATUS_TITLES[s.status] || '';
-  main.title = [s.title, status, summary, s.limitText, s.branch && `ветка ${s.branch}`, s.cwd]
+  const status = STATUS_KEYS[s.status] ? t()[STATUS_KEYS[s.status]] : '';
+  main.title = [s.title, status, summary, s.limitText, s.branch && t().branch(s.branch), s.cwd]
     .filter(Boolean)
     .join('\n');
 
@@ -238,7 +248,7 @@ function renderRow(s, depth, nowMs) {
 
   const hide = el('button', 'row-hide', '✕');
   hide.type = 'button';
-  hide.title = 'Открепить';
+  hide.title = t().detach;
   hide.addEventListener('click', (e) => {
     e.stopPropagation();
     void api.hideSession(s.id);
@@ -258,7 +268,7 @@ function renderChip(chipEl, count, kind, label) {
   chipEl.hidden = count === 0 && !active;
   chipEl.classList.toggle('active', active);
   chipEl.querySelector('.chip-count').textContent = String(count);
-  chipEl.title = active ? `${label} — показать все` : `${label} — показать только их`;
+  chipEl.title = active ? t().chipShowAll(label) : t().chipShowOnly(label);
 }
 
 function render() {
@@ -281,13 +291,13 @@ function render() {
   listEl.replaceChildren();
   countEl.textContent = String(shown.length);
   countEl.title =
-    shown.length === visible.length ? `Сессий: ${visible.length}` : `Показано ${shown.length} из ${visible.length}`;
-  renderChip(chipAttentionEl, attention, 'attention', 'Ждут тебя');
-  renderChip(chipWorkingEl, working, 'working', 'Работают');
+    shown.length === visible.length ? t().countAll(visible.length) : t().countSome(shown.length, visible.length);
+  renderChip(chipAttentionEl, attention, 'attention', t().chipWaiting);
+  renderChip(chipWorkingEl, working, 'working', t().chipWorking);
   recentEl.classList.toggle('active', recentOnly);
 
   if (groups.length === 0) {
-    listEl.append(el('div', 'empty', visible.length === 0 ? 'Сессий пока нет.' : 'Ничего не найдено.'));
+    listEl.append(el('div', 'empty', visible.length === 0 ? t().emptyNone : t().emptyNoMatch));
   }
 
   for (const [name, rows] of groups) {
@@ -299,8 +309,8 @@ function render() {
     const groupWorking = rows.filter((r) => r.status === 'working').length;
     const header = el('button', 'group-header');
     header.type = 'button';
-    header.title = '⌥-клик — свернуть или развернуть все группы';
-    header.append(el('span', 'group-chevron', isCollapsed ? '▸' : '▾'), el('span', 'group-name', name));
+    header.title = t().groupAltClick;
+    header.append(el('span', 'group-chevron', isCollapsed ? '▸' : '▾'), el('span', 'group-name', groupLabel(name)));
     if (groupWorking > 0) header.append(el('span', 'group-working', `● ${groupWorking}`));
     header.append(el('span', 'group-count', String(rows.length)));
     header.addEventListener('click', (e) => {
@@ -327,7 +337,7 @@ function render() {
 
   const hiddenCount = snap.hidden.length;
   footerEl.classList.toggle('hidden', hiddenCount === 0);
-  resetEl.textContent = `Вернуть открепленные (${hiddenCount})`;
+  resetEl.textContent = t().restoreDetached(hiddenCount);
 
   // The collapsed square: the number of sessions waiting for the person, else a
   // green dot while Claude works somewhere, else a yellow one under a limit.
@@ -337,7 +347,7 @@ function render() {
   expandBadgeEl.classList.toggle('working', attention === 0 && working > 0);
   expandBadgeEl.classList.toggle('limited', attention === 0 && working === 0 && limited.length > 0);
   expandEl.title = [
-    `Развернуть — работают: ${working}, ждут тебя: ${attention}`,
+    t().expandTitle(working, attention),
     limited.length > 0 ? `${limited[0].notice}: ${limited.length}` : '',
   ]
     .filter(Boolean)
@@ -417,12 +427,29 @@ function cancelPeekTimers() {
   peekCloseTimer = null;
 }
 
+// Text that sits in the markup: set from the language, then on every switch.
+function renderStaticTexts() {
+  const strings = t();
+  document.documentElement.lang = flags.language;
+  document.title = strings.appName;
+  document.querySelector('.titlebar-title').textContent = strings.sessions;
+  recentEl.textContent = strings.recentLabel;
+  recentEl.title = strings.recentTitle;
+  for (const [node, label] of [
+    [collapseEl, strings.collapse],
+    [expandEl, strings.expand],
+    [pinEl, strings.pin],
+  ]) {
+    node.title = label;
+    node.setAttribute('aria-label', label);
+  }
+}
+
 function renderFlags() {
+  renderStaticTexts();
   pinEl.classList.toggle('active', flags.pinned);
-  pinEl.title = flags.pinned
-    ? 'Закреплено: виджет остаётся на экране, даже когда Claude свёрнут или не активен'
-    : 'Не закреплено: виджет прячется вместе с Claude';
-  if (flags.hotkey) searchEl.placeholder = `Поиск  ${hotkeyLabel(flags.hotkey)}`;
+  pinEl.title = flags.pinned ? t().pinOn : t().pinOff;
+  searchEl.placeholder = flags.hotkey ? `${t().search}  ${hotkeyLabel(flags.hotkey)}` : t().search;
 }
 
 function hotkeyLabel(accelerator) {
@@ -516,8 +543,10 @@ api.onSessionsUpdated((next) => {
 });
 
 api.onFlagsUpdated((next) => {
+  const languageChanged = next.language !== flags.language;
   flags = next;
   renderFlags();
+  if (languageChanged) render();
 });
 
 // The global hotkey: open the panel for good and type straight into the search.

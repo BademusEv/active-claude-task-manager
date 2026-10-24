@@ -18,6 +18,7 @@ const fs = require('fs');
 const fsp = require('fs/promises');
 const os = require('os');
 const path = require('path');
+const I18N = require('./i18n');
 
 // Both builds (the «Claude Sessions» app and `npm start`) keep their state in
 // one folder; CSW_USER_DATA points a test run elsewhere.
@@ -75,6 +76,8 @@ const MIN_SIZE = { width: 260, height: 200 };
 // and the transparent rest of the window lets clicks through.
 const DEFAULT_STATE = {
   hidden: [],
+  // 'en' or 'ru'; see src/i18n.js.
+  language: 'en',
   // Pinned: stays on screen when Claude is minimized or another app is in front.
   pinned: false,
   notify: true,
@@ -126,8 +129,12 @@ function loadState() {
       parsed.pinned = parsed.follow === false;
       delete parsed.follow;
     }
+    // Versions before the language setting were Russian only.
+    const unsetLanguage = !('language' in parsed);
+    if (unsetLanguage) parsed.language = 'ru';
     state = { ...DEFAULT_STATE, ...parsed };
-    if (migrated) saveState();
+    if (!I18N[state.language]) state.language = I18N.fallback;
+    if (migrated || unsetLanguage) saveState();
     if (!Array.isArray(state.hidden)) state.hidden = [];
     if (typeof state.linkPrefix !== 'string' || state.linkPrefix === '') {
       state.linkPrefix = DEFAULT_LINK_PREFIX;
@@ -136,6 +143,11 @@ function loadState() {
   } catch {
     state = { ...DEFAULT_STATE };
   }
+}
+
+// The strings of the chosen language.
+function t() {
+  return I18N[state.language] || I18N[I18N.fallback];
 }
 
 function saveState() {
@@ -179,7 +191,7 @@ function parseSession(raw) {
     id: s.sessionId,
     cliSessionId: typeof s.cliSessionId === 'string' ? s.cliSessionId : '',
     isArchived: s.isArchived === true,
-    title: typeof s.title === 'string' && s.title.trim() !== '' ? s.title : '(без названия)',
+    title: typeof s.title === 'string' ? s.title.trim() : '',
     cwd,
     projectCwd: projectCwdOf(cwd),
     branch: typeof s.branch === 'string' ? s.branch : '',
@@ -278,7 +290,7 @@ function apiStop(entry, message) {
     const resetsAt = Number(info.resetsAt) * 1000 || 0;
     return { kind: 'limited', resetsAt, text };
   }
-  return { kind: 'error', text: text || String(entry.apiError || 'Ошибка API') };
+  return { kind: 'error', text: text || String(entry.apiError || '') };
 }
 
 // What the last conversation entry says about the turn: 'working' while Claude
@@ -359,9 +371,10 @@ async function transcriptState(session, now) {
 
 function clock(ms, now) {
   const d = new Date(ms);
-  const time = d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+  const locale = t().locale;
+  const time = d.toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' });
   if (new Date(now).toDateString() === d.toDateString()) return time;
-  return `${d.toLocaleDateString('ru-RU', { weekday: 'short' })} ${time}`;
+  return `${d.toLocaleDateString(locale, { weekday: 'short' })} ${time}`;
 }
 
 // { status, notice? }. status: 'working' | 'waiting' (a question or a decision
@@ -373,12 +386,12 @@ async function statusOf(session, now) {
   const tail = await transcriptState(session, now);
   if (tail.kind === 'limited') {
     if (tail.resetsAt && tail.resetsAt <= now) {
-      return { status: 'waiting', notice: 'Лимит сброшен — можно продолжить' };
+      return { status: 'waiting', notice: t().limitReset };
     }
-    const until = tail.resetsAt ? `Лимит до ${clock(tail.resetsAt, now)}` : 'Лимит исчерпан';
+    const until = tail.resetsAt ? t().limitUntil(clock(tail.resetsAt, now)) : t().limitReached;
     return { status: 'limited', notice: until, resetsAt: tail.resetsAt, limitText: tail.text };
   }
-  if (tail.kind === 'error') return { status: 'error', notice: tail.text };
+  if (tail.kind === 'error') return { status: 'error', notice: tail.text || t().apiError };
   if (tail.kind !== 'idle') return { status: tail.kind };
   const edge = Math.max(session.lastTurnEdgeAt, session.lastActivityAt);
   if (now - edge < UNREAD_WINDOW_MS && edge > session.lastFocusedAt + UNREAD_TOLERANCE_MS) {
@@ -398,7 +411,7 @@ async function scanSessions() {
       .filter((s) => !s.isArchived)
       .map(async (s) => ({
         id: s.id,
-        title: s.title,
+        title: s.title || t().untitled,
         cwd: s.cwd,
         projectCwd: s.projectCwd,
         branch: s.branch,
@@ -435,7 +448,7 @@ function sessionLink(id) {
 
 function projectName(s) {
   const cwd = s.projectCwd || '';
-  if (!cwd || cwd.includes('/scratch-workspaces/')) return 'Без папки';
+  if (!cwd || cwd.includes('/scratch-workspaces/')) return t().noFolder;
   return path.basename(cwd);
 }
 
@@ -459,8 +472,8 @@ function notifyTransitions(sessions) {
   if (limited.length > 0) {
     showNotification({
       title: limited[0].notice,
-      subtitle: limited[0].limitText || 'Лимит использования Claude',
-      body: `Остановлены: ${limited.map((s) => s.title).join(', ')}`,
+      subtitle: limited[0].limitText || t().usageLimit,
+      body: t().stopped(limited.map((s) => s.title).join(', ')),
       onClick: () => void shell.openExternal(sessionLink(limited[0].id)),
     });
   }
@@ -470,17 +483,20 @@ function notifyTransitions(sessions) {
   if (fresh.length === 0) return;
   if (fresh.length > MAX_NOTIFICATIONS) {
     showNotification({
-      title: 'Сессии Claude',
-      body: `Ждут тебя: ${fresh.length} — ${fresh
-        .slice(0, 4)
-        .map((s) => s.title)
-        .join(', ')}`,
+      title: t().appName,
+      body: t().waitingMany(
+        fresh.length,
+        fresh
+          .slice(0, 4)
+          .map((s) => s.title)
+          .join(', ')
+      ),
       onClick: showWindow,
     });
     return;
   }
   for (const s of fresh) {
-    const fallback = s.status === 'unread' ? 'Claude закончил' : 'Claude ждёт ответа';
+    const fallback = s.status === 'unread' ? t().claudeFinished : t().claudeWaiting;
     showNotification({
       title: s.title,
       subtitle: projectName(s),
@@ -561,6 +577,7 @@ function stopWatching() {
 
 function flags() {
   return {
+    language: state.language,
     pinned: state.pinned,
     notify: state.notify,
     collapsed: state.collapsed,
@@ -647,6 +664,16 @@ function setPinned(pinned) {
   saveState();
   applyFollow();
   sendFlags();
+}
+
+// Notices are built in the scan, so a new language rescans.
+function setLanguage(language) {
+  if (!I18N[language] || language === 'fallback' || language === 'names') return;
+  state.language = language;
+  saveState();
+  if (mainWindow) mainWindow.setTitle(t().appName);
+  sendFlags();
+  void refresh(true);
 }
 
 function setNotify(notify) {
@@ -741,31 +768,41 @@ function updateTray() {
   const attention = shown.filter((s) => isNeedsPerson(s.status)).length;
   // The number next to the icon is what needs the person: answers or unread results.
   tray.setTitle(attention > 0 ? ` ${attention}` : '', { fontType: 'monospacedDigit' });
-  tray.setToolTip(`Сессии Claude — работают: ${working}, ждут тебя: ${attention}`);
+  tray.setToolTip(t().trayTooltip(working, attention));
   tray.setContextMenu(
     Menu.buildFromTemplate([
-      { label: 'Показать окно', accelerator: state.hotkey, click: onHotkey },
-      { label: `Работают: ${working} · Ждут тебя: ${attention}`, enabled: false },
+      { label: t().showWindow, accelerator: state.hotkey, click: onHotkey },
+      { label: t().trayCounts(working, attention), enabled: false },
       { type: 'separator' },
       {
-        label: 'Закрепить — не прятать вместе с Claude',
+        label: t().pinMenu,
         type: 'checkbox',
         checked: state.pinned,
         click: (item) => setPinned(item.checked),
       },
       {
-        label: 'Уведомления',
+        label: t().notifications,
         type: 'checkbox',
         checked: state.notify,
         click: (item) => setNotify(item.checked),
       },
       {
-        label: `Вернуть открепленные (${state.hidden.length})`,
+        // Each language under its own name, so it can be found in either.
+        label: state.language === 'en' ? t().language : `${t().language} / Language`,
+        submenu: Object.entries(I18N.names).map(([code, name]) => ({
+          label: name,
+          type: 'radio',
+          checked: state.language === code,
+          click: () => setLanguage(code),
+        })),
+      },
+      {
+        label: t().restoreDetached(state.hidden.length),
         enabled: state.hidden.length > 0,
         click: () => void resetHidden(),
       },
       { type: 'separator' },
-      { label: 'Выход', role: 'quit' },
+      { label: t().quit, role: 'quit' },
     ])
   );
 }
@@ -807,20 +844,20 @@ function showSessionMenu(id) {
   if (!s || !mainWindow) return;
   const dir = [s.cwd, s.projectCwd].find((d) => d && fs.existsSync(d)) || '';
   const items = [
-    { label: 'Открыть в Claude', click: () => void shell.openExternal(sessionLink(s.id)) },
-    { label: 'Скопировать ссылку', click: () => clipboard.writeText(sessionLink(s.id)) },
+    { label: t().openInClaude, click: () => void shell.openExternal(sessionLink(s.id)) },
+    { label: t().copyLink, click: () => clipboard.writeText(sessionLink(s.id)) },
     { type: 'separator' },
-    { label: 'Показать папку в Finder', enabled: dir !== '', click: () => void shell.openPath(dir) },
+    { label: t().showInFinder, enabled: dir !== '', click: () => void shell.openPath(dir) },
     {
-      label: 'Открыть в Терминале',
+      label: t().openInTerminal,
       enabled: dir !== '',
       click: () => void run('open', ['-a', 'Terminal', dir], dir),
     },
   ];
   if (s.branch) {
-    items.push({ label: `PR / ветка на GitHub (${s.branch})`, click: () => void openOnGitHub(s) });
+    items.push({ label: t().openOnGitHub(s.branch), click: () => void openOnGitHub(s) });
   }
-  items.push({ type: 'separator' }, { label: 'Открепить', click: () => void hideSession(s.id) });
+  items.push({ type: 'separator' }, { label: t().detach, click: () => void hideSession(s.id) });
   Menu.buildFromTemplate(items).popup({ window: mainWindow });
 }
 
@@ -911,7 +948,7 @@ async function createWindow() {
     ...fitToDisplay(expandedBounds()),
     minWidth: MIN_SIZE.width,
     minHeight: MIN_SIZE.height,
-    title: 'Сессии Claude',
+    title: t().appName,
     titleBarStyle: 'hiddenInset',
     trafficLightPosition: { x: 12, y: 12 },
     // The page draws the rounded panel; the rest is see-through.
