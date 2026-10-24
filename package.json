@@ -1,0 +1,21 @@
+{
+  "name": "claude-sessions-widget",
+  "version": "0.1.0",
+  "description": "A small always-on-top window listing Claude desktop sessions grouped by project; click a row to switch the Claude app to that session",
+  "main": "src/main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron .",
+    "build:helper": "sh scripts/build-helper.sh",
+    "postinstall": "sh scripts/build-helper.sh",
+    "autostart": "sh scripts/install-launch-agent.sh",
+    "autostart:remove": "sh scripts/install-launch-agent.sh remove",
+    "package": "sh scripts/package.sh"
+  },
+  "devDependencies": {
+    "@electron/packager": "^20.3.0",
+    "electron": "^32.2.0"
+  },
+  "productName": "Claude Sessions"
+}

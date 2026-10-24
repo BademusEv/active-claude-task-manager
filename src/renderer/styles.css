@@ -1,0 +1,688 @@
+:root {
+  --bg: #121417;
+  --bg-elevated: #1a1d22;
+  --bg-hover: #23272e;
+  --fg: #e6e8eb;
+  --fg-muted: #8b919a;
+  --fg-faint: #5c626b;
+  --accent: #6cc38a;
+  --accent-dim: #3b5e47;
+  --attention: #6aa8ff;
+  --attention-dim: #2c4469;
+  --limit: #e0b050;
+  --limit-dim: #4f4024;
+  --danger: #d97b7b;
+  --border: #272b32;
+  --radius: 8px;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  /* The window is transparent; .shell draws the panel. */
+  background: transparent;
+  color: var(--fg);
+  font: 13px/1.4 -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+  user-select: none;
+}
+
+.shell {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  border-radius: 10px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+  clip-path: inset(0 0 0 0 round 10px);
+  /* Expanding: decelerate into place. */
+  transition: clip-path 320ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  will-change: clip-path;
+}
+
+.titlebar {
+  -webkit-app-region: drag;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  /* The buttons never shrink; the title and the count give way. */
+  container-type: inline-size;
+  height: 38px;
+  padding: 0 8px 0 72px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-elevated);
+  flex: 0 0 auto;
+}
+
+.titlebar-title {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+@container (max-width: 225px) {
+  .titlebar-title {
+    display: none;
+  }
+}
+
+.titlebar-count {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--fg-muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.titlebar .chip,
+.titlebar .svg-button {
+  flex-shrink: 0;
+}
+
+.titlebar-spacer {
+  flex: 1;
+}
+
+/* Status counters in the title bar; a click filters the list by that status. */
+.chip {
+  -webkit-app-region: no-drag;
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 20px;
+  padding: 0 5px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--fg-muted);
+  font: inherit;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.chip[hidden] {
+  display: none;
+}
+
+.chip:hover {
+  background: var(--bg-hover);
+}
+
+.chip-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.chip.attention .chip-dot {
+  background: var(--attention);
+}
+
+.chip.working .chip-dot {
+  background: var(--accent);
+}
+
+.chip.attention.active {
+  border-color: var(--attention-dim);
+  background: var(--attention-dim);
+  color: var(--fg);
+}
+
+.chip.working.active {
+  border-color: var(--accent-dim);
+  background: var(--accent-dim);
+  color: var(--fg);
+}
+
+.icon-button,
+.text-button {
+  -webkit-app-region: no-drag;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: pointer;
+  border-radius: 6px;
+  font: inherit;
+}
+
+.icon-button {
+  width: 26px;
+  height: 26px;
+  line-height: 26px;
+  text-align: center;
+  font-size: 13px;
+  opacity: 0.45;
+}
+
+.icon-button:hover {
+  background: var(--bg-hover);
+  opacity: 0.85;
+}
+
+.icon-button.active {
+  opacity: 1;
+}
+
+.toolbar {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 6px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.search {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  outline: none;
+  user-select: text;
+}
+
+.search:focus {
+  border-color: var(--fg-faint);
+}
+
+.toggle {
+  flex: 0 0 auto;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg-muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.toggle.active {
+  background: var(--accent-dim);
+  border-color: var(--accent-dim);
+  color: var(--fg);
+}
+
+.list {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 6px 6px 8px;
+}
+
+.list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.list::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+.empty {
+  padding: 24px 12px;
+  text-align: center;
+  color: var(--fg-muted);
+}
+
+.group {
+  margin-bottom: 6px;
+}
+
+.group-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.group-header:hover {
+  background: var(--bg-hover);
+}
+
+.group-chevron {
+  width: 10px;
+  color: var(--fg-faint);
+  font-size: 10px;
+}
+
+.group-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.group-count {
+  color: var(--fg-muted);
+  font-weight: 400;
+}
+
+.group-working {
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.group.collapsed .rows {
+  display: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 2px 0 10px;
+  border-radius: var(--radius);
+}
+
+.row:hover {
+  background: var(--bg-hover);
+}
+
+.row-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 5px 4px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dot {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--fg-faint);
+}
+
+.row.status-working .dot {
+  background: var(--accent);
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
+.row.status-waiting .dot,
+.row.status-unread .dot {
+  background: var(--attention);
+  box-shadow: 0 0 0 3px var(--attention-dim);
+}
+
+.row.status-waiting .row-title,
+.row.status-unread .row-title {
+  font-weight: 600;
+}
+
+.row.status-working .row-age {
+  color: var(--accent);
+}
+
+/* Stopped by the usage limit until it resets. */
+.row.status-limited .dot {
+  background: var(--limit);
+  box-shadow: 0 0 0 3px var(--limit-dim);
+}
+
+.row.status-limited .row-age,
+.row.status-limited .row-summary {
+  color: var(--limit);
+}
+
+/* Stopped by another API error. */
+.row.status-error .dot {
+  background: var(--danger);
+  box-shadow: 0 0 0 3px #4a2626;
+}
+
+.row.status-error .row-title {
+  font-weight: 600;
+}
+
+.row.status-error .row-age,
+.row.status-error .row-summary {
+  color: var(--danger);
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 var(--accent-dim);
+    opacity: 1;
+  }
+  50% {
+    box-shadow: 0 0 0 4px var(--accent-dim);
+    opacity: 0.6;
+  }
+}
+
+.row.child .row-main {
+  padding-left: calc(var(--depth) * 14px + 4px);
+}
+
+.row.child .dot {
+  width: 6px;
+  height: 6px;
+}
+
+.row.child .row-title {
+  color: var(--fg-muted);
+}
+
+.row.child.status-working .row-title,
+.row.child.status-waiting .row-title,
+.row.child.status-unread .row-title {
+  color: var(--fg);
+}
+
+.row-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.row-title-line {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.row-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row-branch {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--fg-faint);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+/* The app's one-line report on the last turn. */
+.row-summary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--fg-muted);
+  font-size: 11.5px;
+  font-weight: 400;
+}
+
+.row.status-waiting .row-summary,
+.row.status-unread .row-summary {
+  color: #a9c6f0;
+}
+
+.row.selected {
+  background: var(--bg-hover);
+  box-shadow: inset 2px 0 0 var(--attention);
+}
+
+.row.starred .row-title::before {
+  content: '★ ';
+  color: #d9b86a;
+}
+
+.row-age {
+  flex: 0 0 auto;
+  color: var(--fg-faint);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.row-hide {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg-faint);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.row:hover .row-hide {
+  opacity: 1;
+}
+
+.row-hide:hover {
+  background: var(--border);
+  color: var(--danger);
+}
+
+.footer {
+  flex: 0 0 auto;
+  border-top: 1px solid var(--border);
+  padding: 6px;
+  background: var(--bg-elevated);
+}
+
+.footer.hidden {
+  display: none;
+}
+
+.text-button {
+  width: 100%;
+  padding: 6px 8px;
+  text-align: left;
+}
+
+.text-button:hover {
+  background: var(--bg-hover);
+  color: var(--fg);
+}
+
+.svg-button,
+.expand-button {
+  -webkit-app-region: no-drag;
+  appearance: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: pointer;
+}
+
+.svg-button svg,
+.expand-button svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.svg-button {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+}
+
+/* Switches (follow Claude, always on top): bright when on, faint when off. */
+.toggle-button {
+  color: var(--fg-faint);
+}
+
+.toggle-button.active {
+  color: var(--fg);
+}
+
+.svg-button svg {
+  width: 14px;
+  height: 14px;
+}
+
+.svg-button:hover {
+  background: var(--bg-hover);
+  color: var(--fg);
+}
+
+/* Collapsed: the panel clips itself to a square at its top-right corner that
+   holds the expand button alone; the square's edge drags the window. Only
+   clip-path and opacity change, so nothing is laid out again mid-animation. */
+body.collapsed .shell {
+  clip-path: inset(0 0 calc(100% - 44px) calc(100% - 44px) round 10px);
+  transition: clip-path 260ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.titlebar,
+.toolbar,
+.list,
+.footer {
+  transition: opacity 200ms ease-out 90ms;
+}
+
+body.collapsed .titlebar,
+body.collapsed .toolbar,
+body.collapsed .list,
+body.collapsed .footer {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 110ms ease-in;
+}
+
+body.collapsed .titlebar {
+  -webkit-app-region: no-drag;
+}
+
+.mini {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: var(--bg-elevated);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease-out;
+}
+
+body.collapsed .mini {
+  opacity: 1;
+  pointer-events: auto;
+  -webkit-app-region: drag;
+  transition: opacity 160ms ease-out 60ms;
+}
+
+/* Starting up collapsed: no animation into it. */
+body.no-anim .shell,
+body.no-anim .shell * {
+  transition: none !important;
+}
+
+.expand-button {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  color: var(--fg);
+}
+
+.expand-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.expand-button:hover {
+  background: var(--bg-hover);
+}
+
+/* The collapsed square's corner: how many sessions wait for the person, or a
+   green dot while Claude works. */
+.expand-badge {
+  display: none;
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: 8px;
+  color: #0d1420;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 15px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.expand-badge.attention {
+  display: block;
+  background: var(--attention);
+}
+
+.expand-badge.limited {
+  display: block;
+  top: -3px;
+  right: -3px;
+  min-width: 7px;
+  width: 7px;
+  height: 7px;
+  padding: 0;
+  background: var(--limit);
+}
+
+.expand-badge.working {
+  display: block;
+  top: -3px;
+  right: -3px;
+  min-width: 7px;
+  width: 7px;
+  height: 7px;
+  padding: 0;
+  background: var(--accent);
+  animation: pulse 1.6s ease-in-out infinite;
+}

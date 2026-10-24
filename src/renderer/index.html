@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:"
+    />
+    <title>Сессии Claude</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div id="shell" class="shell">
+      <header class="titlebar">
+        <span class="titlebar-title">Сессии</span>
+        <span id="count" class="titlebar-count"></span>
+        <button id="chip-attention" class="chip attention" type="button" hidden><span class="chip-dot"></span><span class="chip-count"></span></button>
+        <button id="chip-working" class="chip working" type="button" hidden><span class="chip-dot"></span><span class="chip-count"></span></button>
+        <span class="titlebar-spacer"></span>
+        <button id="pin" class="svg-button toggle-button" type="button" title="Закрепить" aria-label="Закрепить">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <line x1="12" y1="17" x2="12" y2="22" />
+            <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24z" />
+          </svg>
+        </button>
+        <button id="collapse" class="svg-button" type="button" title="Свернуть" aria-label="Свернуть">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <polyline points="4 14 10 14 10 20" />
+            <polyline points="20 10 14 10 14 4" />
+            <line x1="14" y1="10" x2="21" y2="3" />
+            <line x1="3" y1="21" x2="10" y2="14" />
+          </svg>
+        </button>
+      </header>
+      <div class="toolbar">
+        <input id="search" class="search" type="search" placeholder="Поиск" spellcheck="false" />
+        <button id="recent" class="toggle" type="button" title="Только сессии с активностью за 7 дней">7 д</button>
+      </div>
+      <main id="list" class="list"></main>
+      <footer id="footer" class="footer hidden">
+        <button id="reset" class="text-button" type="button"></button>
+      </footer>
+      <div class="mini">
+        <button id="expand" class="expand-button" type="button" title="Развернуть" aria-label="Развернуть">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <polyline points="15 3 21 3 21 9" />
+            <polyline points="9 21 3 21 3 15" />
+            <line x1="21" y1="3" x2="14" y2="10" />
+            <line x1="3" y1="21" x2="10" y2="14" />
+          </svg>
+          <span id="expand-badge" class="expand-badge"></span>
+        </button>
+      </div>
+    </div>
+    <script src="renderer.js"></script>
+  </body>
+</html>
