@@ -67,6 +67,9 @@ screen. macOS asks once whether «Claude Sessions» may send notifications.
   sessions wait for you. Rest the pointer on it to peek into the list; the expand button
   keeps it open. Drag the square by its edge. While collapsed, clicks around the square go
   through to the windows below.
+- **Undo** (↶ in the title bar, ⌘Z, or the menu bar menu) takes back your last five
+  changes one at a time: detaching a session, Restore detached, the pin, notifications and
+  the language. Sessions Claude adds by itself are not changes of yours and stay.
 - **Pin**: unpinned (the default), the widget hides when Claude is minimized or another app
   is in front, and comes back with Claude. Pinned, it stays on screen.
 - **⌃⌥S** anywhere shows the panel with the cursor in the search; ↑/↓ pick a session, Enter
@@ -75,8 +78,8 @@ screen. macOS asks once whether «Claude Sessions» may send notifications.
 - **Notifications** come when a session starts to wait for you or fails, unless Claude is
   in front; one notification covers every session a usage limit stops. Click one to open
   the session. Switch them off in the menu bar menu.
-- **Menu bar icon**: the number of sessions waiting for you; its menu has Show window, the
-  pin and notification switches, Language, Restore detached and Quit. The window's close
+- **Menu bar icon**: the number of sessions waiting for you; its menu has Show window, Undo,
+  the pin and notification switches, Language, Restore detached and Quit. The window's close
   button only hides it.
 - **Language**: English by default, Russian in the menu bar menu (Language). Settings from
   versions before the switch keep Russian.

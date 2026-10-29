@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('sessionsWidget', {
   hideSession: (id) => ipcRenderer.invoke('sessions:hide', id),
   showSessionMenu: (id) => ipcRenderer.invoke('sessions:menu', id),
   resetHidden: () => ipcRenderer.invoke('sessions:reset'),
+  undo: () => ipcRenderer.invoke('undo'),
   getFlags: () => ipcRenderer.invoke('flags:get'),
   setPinned: (pinned) => ipcRenderer.invoke('window:set-pinned', pinned),
   setCollapsed: (collapsed, options) => ipcRenderer.invoke('window:set-collapsed', collapsed, options),

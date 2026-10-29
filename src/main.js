@@ -59,6 +59,8 @@ const DEFAULT_LINK_PREFIX = 'claude://claude.ai/epitaxy/';
 const DEFAULT_HOTKEY = 'Control+Alt+S';
 // More notifications than this from one scan are folded into one.
 const MAX_NOTIFICATIONS = 3;
+// How many of the person's own changes can be undone.
+const UNDO_LIMIT = 5;
 
 // The Swift helper reports the frontmost app and Claude's on-screen windows.
 // Unpinned, the widget is shown only while Claude (or the widget) is frontmost
@@ -107,6 +109,10 @@ const watchers = [];
 let previousStatus = null;
 // Shown notifications, held so their click handlers outlive garbage collection.
 const notifications = new Set();
+// The person's own changes (detach, restore, pin, notifications, language),
+// newest last: { label: () => string, undo: () => Promise|void }. Sessions the
+// Claude app adds are not changes of the person's and never land here.
+const undoStack = [];
 
 // file -> { mtimeMs, session } so an unchanged session file is not re-read.
 const sessionCache = new Map();
@@ -576,7 +582,9 @@ function stopWatching() {
 }
 
 function flags() {
+  const last = undoStack[undoStack.length - 1];
   return {
+    undoLabel: last ? last.label() : null,
     language: state.language,
     pinned: state.pinned,
     notify: state.notify,
@@ -659,32 +667,79 @@ function stopFrontHelper() {
   }
 }
 
-function setPinned(pinned) {
+function pushUndo(entry) {
+  undoStack.push(entry);
+  if (undoStack.length > UNDO_LIMIT) undoStack.shift();
+}
+
+async function undo() {
+  const entry = undoStack.pop();
+  if (!entry) return;
+  await entry.undo();
+  sendFlags();
+}
+
+// `record: false` is an undo putting a value back: it is not itself undoable.
+function setPinned(pinned, { record = true } = {}) {
+  const before = state.pinned;
   state.pinned = pinned === true;
+  if (record && before !== state.pinned) {
+    pushUndo({
+      label: () => (state.pinned ? t().undoPin : t().undoUnpin),
+      undo: () => setPinned(before, { record: false }),
+    });
+  }
   saveState();
   applyFollow();
   sendFlags();
 }
 
 // Notices are built in the scan, so a new language rescans.
-function setLanguage(language) {
+function setLanguage(language, { record = true } = {}) {
   if (!I18N[language] || language === 'fallback' || language === 'names') return;
+  const before = state.language;
+  if (before === language) return;
   state.language = language;
+  if (record) {
+    pushUndo({
+      label: () => t().undoLanguage(I18N.names[language]),
+      undo: () => setLanguage(before, { record: false }),
+    });
+  }
   saveState();
   if (mainWindow) mainWindow.setTitle(t().appName);
   sendFlags();
   void refresh(true);
 }
 
-function setNotify(notify) {
+function setNotify(notify, { record = true } = {}) {
+  const before = state.notify;
   state.notify = notify === true;
+  if (record && before !== state.notify) {
+    pushUndo({
+      label: () => (state.notify ? t().undoNotifyOn : t().undoNotifyOff),
+      undo: () => setNotify(before, { record: false }),
+    });
+  }
   saveState();
   sendFlags();
 }
 
 async function resetHidden() {
+  const before = state.hidden.slice();
+  if (before.length === 0) return;
   state.hidden = [];
+  pushUndo({
+    label: () => t().undoRestore(before.length),
+    // Detach them again, keeping anything detached since.
+    undo: async () => {
+      state.hidden = Array.from(new Set([...state.hidden, ...before]));
+      saveState();
+      await refresh(true);
+    },
+  });
   saveState();
+  sendFlags();
   await refresh(true);
 }
 
@@ -772,6 +827,11 @@ function updateTray() {
   tray.setContextMenu(
     Menu.buildFromTemplate([
       { label: t().showWindow, accelerator: state.hotkey, click: onHotkey },
+      {
+        label: undoStack.length > 0 ? t().undoAction(undoStack[undoStack.length - 1].label()) : t().undoNothing,
+        enabled: undoStack.length > 0,
+        click: () => void undo(),
+      },
       { label: t().trayCounts(working, attention), enabled: false },
       { type: 'separator' },
       {
@@ -834,7 +894,18 @@ async function hideSession(id) {
   if (typeof id !== 'string') return;
   if (!state.hidden.includes(id)) {
     state.hidden.push(id);
+    const session = lastSnapshot.sessions.find((s) => s.id === id);
+    const title = session ? session.title : '';
+    pushUndo({
+      label: () => t().undoDetach(title),
+      undo: async () => {
+        state.hidden = state.hidden.filter((x) => x !== id);
+        saveState();
+        await refresh(true);
+      },
+    });
     saveState();
+    sendFlags();
   }
   await refresh(true);
 }
@@ -995,6 +1066,7 @@ ipcMain.handle('sessions:open', (_e, id) => {
 ipcMain.handle('sessions:hide', (_e, id) => hideSession(id));
 ipcMain.handle('sessions:menu', (_e, id) => showSessionMenu(id));
 ipcMain.handle('sessions:reset', () => resetHidden());
+ipcMain.handle('undo', () => undo());
 
 ipcMain.handle('flags:get', () => flags());
 ipcMain.handle('window:set-pinned', (_e, pinned) => setPinned(pinned));

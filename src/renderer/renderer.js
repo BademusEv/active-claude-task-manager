@@ -32,6 +32,7 @@ const pinEl = document.getElementById('pin');
 const searchEl = document.getElementById('search');
 const recentEl = document.getElementById('recent');
 const collapseEl = document.getElementById('collapse');
+const undoEl = document.getElementById('undo');
 const expandEl = document.getElementById('expand');
 const expandBadgeEl = document.getElementById('expand-badge');
 const shellEl = document.getElementById('shell');
@@ -449,6 +450,9 @@ function renderFlags() {
   renderStaticTexts();
   pinEl.classList.toggle('active', flags.pinned);
   pinEl.title = flags.pinned ? t().pinOn : t().pinOff;
+  undoEl.disabled = !flags.undoLabel;
+  undoEl.title = flags.undoLabel ? `${t().undoAction(flags.undoLabel)}  ⌘Z` : t().undoNothing;
+  undoEl.setAttribute('aria-label', undoEl.title);
   searchEl.placeholder = flags.hotkey ? `${t().search}  ${hotkeyLabel(flags.hotkey)}` : t().search;
 }
 
@@ -500,6 +504,7 @@ shellEl.addEventListener('mouseleave', () => {
 });
 
 resetEl.addEventListener('click', () => void api.resetHidden());
+undoEl.addEventListener('click', () => void api.undo());
 searchEl.addEventListener('input', () => {
   query = searchEl.value;
   selectedId = null;
@@ -513,6 +518,13 @@ recentEl.addEventListener('click', () => {
 
 document.addEventListener('keydown', (e) => {
   if (document.body.classList.contains('collapsed')) return;
+  // ⌘Z undoes the last change, except while it would undo typing in the search.
+  if (e.metaKey && !e.shiftKey && e.key.toLowerCase() === 'z') {
+    if (document.activeElement === searchEl && searchEl.value) return;
+    e.preventDefault();
+    if (flags.undoLabel) void api.undo();
+    return;
+  }
   if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
     e.preventDefault();
     moveSelection(e.key === 'ArrowDown' ? 1 : -1);

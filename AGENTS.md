@@ -119,6 +119,10 @@ tray number, notifications); `limited` does not.
   the English placeholders the page overwrites. Text cached with a file (titles, API error
   text) is translated when the row is built, not when the file is read, so a language
   switch applies at once.
+- A new action that changes what the person set (the list, a switch, the language) pushes
+  an entry on `undoStack` in `src/main.js` with a label and the code that puts the old
+  value back; the undo path calls the setter with `{ record: false }` so undoing is not
+  itself recorded. Rescans and sessions the Claude app adds never go on the stack.
 - Smallest correct diff. Do not commit unless the person asks.
 
 ## Gotchas
